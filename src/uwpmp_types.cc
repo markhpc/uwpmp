@@ -80,7 +80,7 @@ void UwpmpFunc::print_percent(std::string prefix, uint32_t total, bool include_s
             [](const std::pair<std::string, float> & a,
                const std::pair<std::string, float> & b)
   {
-    return a.second < b.second;
+    return a.second > b.second;
   });
 
   uint32_t depth = 0;

@@ -26,7 +26,6 @@ struct UwpmpCtx {
         .positional_help("[optional args]")
         .show_positional_help();
       options
-//        .set_tab_expansion()
         .add_options()
         ("h, help", "show this help message and exit")
 //        ("i, input", "Read collected samples from this file.", cxxopts::value<std::string>())
@@ -121,7 +120,6 @@ struct UwpmpThreadFactory {
     std::string key = name + std::to_string(tid);
     auto thread = std::make_shared<UwpmpThread>(ctx, name, tid);
     thread_map.try_emplace(key, thread);
-//    std::cout << "tf.get() count: " << thread_map.size() << std::endl;
     return thread_map.at(key);
   }
 
@@ -134,7 +132,7 @@ struct UwpmpThreadFactory {
               [](const std::shared_ptr<UwpmpThread> a,
                  const std::shared_ptr<UwpmpThread> b)
     { 
-      return a->name > b->name;
+      return a->name < b->name;
     });
 
     return thread_vec;

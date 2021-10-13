@@ -33,7 +33,7 @@ ExternalProject_Add(
 	GIT_REPOSITORY https://github.com/libunwind/libunwind.git
         GIT_TAG "v1.5"
 	CONFIGURE_COMMAND
-	cd <SOURCE_DIR> && autoreconf -i && ./configure --disable-minidebuginfo --disable-shared --enable-static
+	cd <SOURCE_DIR> && autoreconf -i && ./configure --disable-shared --enable-static
 	BUILD_COMMAND
 	cd <SOURCE_DIR> && make -s -j${BUILD_JOBS_NUM}
 	INSTALL_COMMAND ""
@@ -46,7 +46,7 @@ set(libunwind_INCLUDE_DIR ${libunwind_SOURCE_DIR}/include)
 
 add_executable(${PROJECT_NAME} src/unwindpmp.cc src/uwpmp_types.cc)
 target_include_directories(${PROJECT_NAME} PRIVATE src ${libunwind_INCLUDE_DIR})
-target_link_libraries(${PROJECT_NAME} stdc++ cxxopts nlohmann_json::nlohmann_json fmt)
+target_link_libraries(${PROJECT_NAME} stdc++ lzma cxxopts nlohmann_json::nlohmann_json fmt)
 target_link_libraries(${PROJECT_NAME} ${libunwind_LIBS_DIR}/libunwind-ptrace.a)
 target_link_libraries(${PROJECT_NAME} ${libunwind_LIBS_DIR}/libunwind-x86_64.a)
 target_link_libraries(${PROJECT_NAME} ${libunwind_LIBS_DIR}/libunwind.a)

@@ -1,4 +1,7 @@
 #include <sys/ptrace.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
 #include <libunwind-ptrace.h>
@@ -33,12 +36,15 @@ struct UwpmpTracer {
     if (ptrace(PTRACE_ATTACH, t->id, 0, 0) != 0) {
       die("ERROR: cannot attach to %d\n", t->id);
     }
+    waitpid(t->id, NULL, 0);
+
     void *context = _UPT_create(t->id);
     unw_cursor_t cursor;
     unw_addr_space_t as = unw_create_addr_space(&_UPT_accessors, 0);
 
-    if (unw_init_remote(&cursor, as, context) != 0) {
-      die("ERROR: cannot initialize cursor for remote unwinding\n");
+    int r = unw_init_remote(&cursor, as, context);
+    if (r != 0) {
+      die("ERROR: cannot initialize cursor for remote unwinding r = %d\n", r);
     }
 
     do {
@@ -62,6 +68,7 @@ struct UwpmpTracer {
     } while (unw_step(&cursor) > 0);
     _UPT_destroy(context);
     (void) ptrace(PTRACE_DETACH, t->id, 0, 0);
+    std::reverse(std::begin(frames), std::end(frames));
     t->root.add_frames(frames);
     return 0;
   }
@@ -81,7 +88,7 @@ struct UwpmpTracer {
           std::string name;
           std::getline(is, name);
           is.close();
-          trace(tf->get(name, (pid_t) tid));
+	  trace(tf->get(name, (pid_t) tid));
         }
       }
     }
