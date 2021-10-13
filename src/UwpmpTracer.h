@@ -28,8 +28,14 @@ void die(const char *fmt, ...)
 struct UwpmpTracer {
   UwpmpCtx* ctx;
   UwpmpThreadFactory* tf;
+  unw_addr_space_t as;
 
-  UwpmpTracer(UwpmpCtx *c, UwpmpThreadFactory* f) : ctx(c), tf(f) {}
+  UwpmpTracer(UwpmpCtx *c, UwpmpThreadFactory* f) : ctx(c), tf(f) {
+    as = unw_create_addr_space(&_UPT_accessors, 0);
+    unw_set_caching_policy(as, UNW_CACHE_GLOBAL);
+    unw_set_cache_size(as, 1024, 0);
+  }
+
   int trace(std::shared_ptr<UwpmpThread> t) {
     std::vector<std::string> frames;
 
@@ -40,7 +46,6 @@ struct UwpmpTracer {
 
     void *context = _UPT_create(t->id);
     unw_cursor_t cursor;
-    unw_addr_space_t as = unw_create_addr_space(&_UPT_accessors, 0);
 
     int r = unw_init_remote(&cursor, as, context);
     if (r != 0) {
