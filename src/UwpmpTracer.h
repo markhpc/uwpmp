@@ -68,7 +68,10 @@ struct UwpmpTracer {
     } while (unw_step(&cursor) > 0);
     _UPT_destroy(context);
     (void) ptrace(PTRACE_DETACH, t->id, 0, 0);
-    std::reverse(std::begin(frames), std::end(frames));
+    // turns out we are already inverted, so reverse if not
+    if (!ctx->invert) {
+      std::reverse(std::begin(frames), std::end(frames));
+    }
     t->root.add_frames(frames);
     return 0;
   }

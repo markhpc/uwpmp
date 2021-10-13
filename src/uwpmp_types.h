@@ -13,10 +13,11 @@
 
 struct UwpmpCtx {
   pid_t pid;               // required, must attach to process
-  uint32_t sleep = 1;      // optional, default 1ms
-  uint32_t samples = 1000; // optional, default 1000 samples
-  uint32_t max_width;      // optional, default to current terminal width
+  uint32_t sleep = 0;      // optional, default 0ms
+  uint32_t samples = 100;  // optional, default 1000 samples
   float threshold = 0.1;   // optional, default to 0.1%
+  bool invert = false;     // optional, default to false
+  uint32_t max_width;      // optional, default to current terminal width
   bool truncate = true;    // optional, default to true
 
   UwpmpCtx(int argc, char* argv[]) {
@@ -31,14 +32,19 @@ struct UwpmpCtx {
 //        ("i, input", "Read collected samples from this file.", cxxopts::value<std::string>())
         ("p, pid", "PID of the process to attach to.", cxxopts::value<uint32_t>())
         ("s, sleep", "The time to sleep between samples in ms.", cxxopts::value<uint32_t>())
-        ("n, samples", "The number of samples to collect.", cxxopts::value<uint32_t>());
-        ("w, max_width", "Set the display width (default is terminal width)", cxxopts::value<uint32_t>());
+        ("n, samples", "The number of samples to collect.", cxxopts::value<uint32_t>())
+//        ("o, output", "Write collected samples to this file.", cxxopts::value<std::string())
+        ("t, threshold", "Ignore results below the threshold when making the callgraph.", cxxopts::value<float>())
+        ("v, invert", "Print inverted callgraph.", cxxopts::value<bool>())
+        ("w, max_width", "Set the display width (default is terminal width)", cxxopts::value<uint32_t>())
+        ("r, truncate", "Truncate lines to the terminal width", cxxopts::value<bool>());
 
       auto result = options.parse(argc, argv);
       if (result.count("help")) {
         std::cout << options.help({""}) << std::endl;
         exit(0);
       }
+      //TODO: Handle input file
       if (result.count("p")) {
         pid = result["p"].as<uint32_t>();
       } else {
@@ -49,12 +55,25 @@ struct UwpmpCtx {
       if (result.count("s")) {
         sleep = result["s"].as<uint32_t>();
       }
+      if (result.count("n")) {
+	samples = result["n"].as<uint32_t>();
+      }
+      //TODO: Handle output file
+      if (result.count("t")) {
+        threshold = result["t"].as<float>();
+      }
+      if (result.count("v")) {
+        invert = result["v"].as<bool>();
+      }
       if (result.count("w")) {
         max_width = result["w"].as<uint32_t>();
       } else {
         winsize w;
         ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
         max_width = w.ws_col;        
+      }
+      if (result.count("r")) {
+        truncate = result["r"].as<bool>();
       }
     } catch (const cxxopts::OptionException& e) {
       std::cout << "error parsing options: " << e.what() << std::endl; 
