@@ -78,6 +78,7 @@ struct UwpmpTracer {
       std::reverse(std::begin(frames), std::end(frames));
     }
     t->root.add_frames(frames);
+    tf->get_default()->root.add_frames(frames); 
     return 0;
   }
 
@@ -96,7 +97,7 @@ struct UwpmpTracer {
           std::string name;
           std::getline(is, name);
           is.close();
-	  trace(tf->get(name, (pid_t) tid));
+          trace(tf->get(name, (pid_t) tid));
         }
       }
     }

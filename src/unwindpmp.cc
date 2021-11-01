@@ -12,8 +12,14 @@ int main(int argc, char **argv)
     std::cout << "sample: " << i << std::endl;
     tracer.trace_all();
   }
-  auto thread_vec = tf.sorted_getall();
-  for (auto thread : thread_vec) {
+
+  if (ctx.collapse) {
+    auto thread = tf.get_default();
     thread->print();
+  } else {
+    auto thread_vec = tf.sorted_getall();
+    for (auto thread : thread_vec) {
+      thread->print();
+    }
   }
 }

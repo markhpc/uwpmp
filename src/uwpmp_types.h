@@ -19,6 +19,7 @@ struct UwpmpCtx {
   bool invert = false;     // optional, default to false
   uint32_t max_width;      // optional, default to current terminal width
   bool truncate = true;    // optional, default to true
+  bool collapse = false;   // optional, show all threads by default
 
   UwpmpCtx(int argc, char* argv[]) {
     try {
@@ -37,7 +38,8 @@ struct UwpmpCtx {
         ("t, threshold", "Ignore results below the threshold when making the callgraph.", cxxopts::value<float>())
         ("v, invert", "Print inverted callgraph.", cxxopts::value<bool>())
         ("w, max_width", "Set the display width (default is terminal width)", cxxopts::value<uint32_t>())
-        ("r, truncate", "Truncate lines to the terminal width", cxxopts::value<bool>());
+        ("r, truncate", "Truncate lines to the terminal width", cxxopts::value<bool>())
+        ("c, collapse", "Collapse traces from multiple threads into a single report", cxxopts::value<bool>());
 
       auto result = options.parse(argc, argv);
       if (result.count("help")) {
@@ -74,6 +76,9 @@ struct UwpmpCtx {
       }
       if (result.count("r")) {
         truncate = result["r"].as<bool>();
+      }
+      if (result.count("c")) {
+        collapse = result["c"].as<bool>();
       }
     } catch (const cxxopts::OptionException& e) {
       std::cout << "error parsing options: " << e.what() << std::endl; 
@@ -132,8 +137,15 @@ struct UwpmpThread {
 struct UwpmpThreadFactory {
   UwpmpCtx* ctx;
   std::unordered_map<std::string, std::shared_ptr<UwpmpThread>> thread_map;
+  std::shared_ptr<UwpmpThread> default_thread;
 
-  UwpmpThreadFactory(UwpmpCtx *c) : ctx(c), thread_map{} {}
+  UwpmpThreadFactory(UwpmpCtx *c) : ctx(c), thread_map{} {
+    default_thread = std::make_shared<UwpmpThread>(ctx, "All Thread", 0);
+  }
+
+  std::shared_ptr<UwpmpThread> get_default() {
+    return default_thread;
+  }
 
   std::shared_ptr<UwpmpThread> get(std::string name, pid_t tid) {
     std::string key = name + std::to_string(tid);
