@@ -12,13 +12,14 @@
 #include "cxxopts.hpp"
 
 struct UwpmpCtx {
-  pid_t pid;               // required, must attach to process
-  uint32_t sleep = 0;      // optional, default 0ms
-  uint32_t samples = 100;  // optional, default 1000 samples
-  float threshold = 0.1;   // optional, default to 0.1%
-  bool invert = false;     // optional, default to false
-  uint32_t max_width;      // optional, default to current terminal width
-  bool truncate = true;    // optional, default to true
+  pid_t pid;                 // required, must attach to process
+  uint32_t sleep = 0;        // optional, default 0ms
+  uint32_t samples = 100;    // optional, default 1000 samples
+  float threshold = 0.1;     // optional, default to 0.1%
+  bool invert = false;       // optional, default to false
+  uint32_t max_width;        // optional, default to current terminal width
+  bool truncate = true;      // optional, default to true
+  bool groupthreads = false; // optional, default to individual threads
 
   UwpmpCtx(int argc, char* argv[]) {
     try {
@@ -37,7 +38,8 @@ struct UwpmpCtx {
         ("t, threshold", "Ignore results below the threshold when making the callgraph.", cxxopts::value<float>())
         ("v, invert", "Print inverted callgraph.", cxxopts::value<bool>())
         ("w, max_width", "Set the display width (default is terminal width)", cxxopts::value<uint32_t>())
-        ("r, truncate", "Truncate lines to the terminal width", cxxopts::value<bool>());
+        ("r, truncate", "Truncate lines to the terminal width", cxxopts::value<bool>())
+        ("g, groupthreads", "Group threads by name when collecting samples", cxxopts::value<bool>());
 
       auto result = options.parse(argc, argv);
       if (result.count("help")) {
@@ -75,6 +77,9 @@ struct UwpmpCtx {
       if (result.count("r")) {
         truncate = result["r"].as<bool>();
       }
+      if (result.count("g")) {
+        groupthreads = result["g"].as<bool>();
+      }
     } catch (const cxxopts::OptionException& e) {
       std::cout << "error parsing options: " << e.what() << std::endl; 
     }
@@ -111,19 +116,31 @@ struct UwpmpFunc {
 struct UwpmpThread {
   UwpmpCtx* ctx;
   std::string name;
-  pid_t id;
+  std::map<pid_t, bool> ids;
   UwpmpFunc root;
 
-  UwpmpThread(UwpmpCtx *c, std::string tname, pid_t tid) :
+  UwpmpThread(UwpmpCtx *c, std::string tname) :
       ctx(c),
       name(tname),
-      id(tid),
       root(c, "", 2)
   {}
 
+  void reg_id(pid_t tid) {
+    ids.try_emplace(tid, true);
+  }
+
   void print() {
     auto samples = root.get_samples(true);
-    auto line = "Thread " + std::to_string(id) + " (" + name + ") - " + std::to_string(samples) + " samples";
+    std::string line = "Thread [";
+    bool first = true;
+    for (auto idp : ids) {
+      if (!first) {
+        line += " ";
+      }
+      line += std::to_string(idp.first);
+      first = false;
+    }
+    line += "] (" + name + ") - " + std::to_string(samples) + " samples";
     std::cout << std::endl << line << std::endl;
     root.print_percent("", samples, true);
   }
@@ -136,10 +153,20 @@ struct UwpmpThreadFactory {
   UwpmpThreadFactory(UwpmpCtx *c) : ctx(c), thread_map{} {}
 
   std::shared_ptr<UwpmpThread> get(std::string name, pid_t tid) {
-    std::string key = name + std::to_string(tid);
-    auto thread = std::make_shared<UwpmpThread>(ctx, name, tid);
-    thread_map.try_emplace(key, thread);
-    return thread_map.at(key);
+    std::string key = name;
+    if (!ctx->groupthreads) {
+      key += std::to_string(tid);
+    }
+    std::shared_ptr<UwpmpThread> thread;
+    auto iter = thread_map.find(key);
+    if (iter == thread_map.end()) {
+      thread = std::make_shared<UwpmpThread>(ctx, name);
+      thread_map.emplace(key, thread);
+    } else {
+      thread = iter->second;
+    }
+    thread->reg_id(tid);
+    return thread;
   }
 
   std::vector<std::shared_ptr<UwpmpThread>> sorted_getall() {

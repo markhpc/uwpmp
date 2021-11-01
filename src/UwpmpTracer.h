@@ -36,15 +36,15 @@ struct UwpmpTracer {
     unw_set_cache_size(as, 1024, 0);
   }
 
-  int trace(std::shared_ptr<UwpmpThread> t) {
+  int trace(std::shared_ptr<UwpmpThread> t, pid_t tid) {
     std::vector<std::string> frames;
 
-    if (ptrace(PTRACE_ATTACH, t->id, 0, 0) != 0) {
-      die("ERROR: cannot attach to %d\n", t->id);
+    if (ptrace(PTRACE_ATTACH, tid, 0, 0) != 0) {
+      die("ERROR: cannot attach to %d\n", tid);
     }
-    waitpid(t->id, NULL, 0);
+    waitpid(tid, NULL, 0);
 
-    void *context = _UPT_create(t->id);
+    void *context = _UPT_create(tid);
     unw_cursor_t cursor;
 
     int r = unw_init_remote(&cursor, as, context);
@@ -72,7 +72,7 @@ struct UwpmpTracer {
 
     } while (unw_step(&cursor) > 0);
     _UPT_destroy(context);
-    (void) ptrace(PTRACE_DETACH, t->id, 0, 0);
+    (void) ptrace(PTRACE_DETACH, tid, 0, 0);
     // turns out we are already inverted, so reverse if not
     if (!ctx->invert) {
       std::reverse(std::begin(frames), std::end(frames));
@@ -96,7 +96,7 @@ struct UwpmpTracer {
           std::string name;
           std::getline(is, name);
           is.close();
-	  trace(tf->get(name, (pid_t) tid));
+	  trace(tf->get(name, (pid_t) tid), tid);
         }
       }
     }
