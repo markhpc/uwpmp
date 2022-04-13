@@ -1,6 +1,23 @@
 # uwpmp - A libunwind Based Wallclock Profiler
 
-### Build
+### Prerequisites
+You'll need the following packages installed prior to building the executable.
+- git
+- cmake
+- gcc-c++
+- elfutils-libelf-devel
+- elfutils-devel
+- autoconf
+- automake
+- libtool
+  
+For CentOS Stream 8
+```
+dnf install -y git cmake gcc-c++ elfutils-libelf-devel elfutils-devel autoconf automake libtool
+```
+
+
+### Build 
 ```
 git clone https://github.com/markhpc/uwpmp.git
 cd uwpmp
