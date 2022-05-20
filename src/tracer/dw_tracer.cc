@@ -92,6 +92,8 @@ int DwTracer::trace(std::shared_ptr<UwpmpThread> t)
     if (r != 0) {
       die("dwfl_linux_proc_report errno: %d\n", dwfl_errno());
     }
+    // Clear the cache after resync?
+    dw_ctx.modcache.clear();
     tries--;
   }
   if (ret != 0) {
