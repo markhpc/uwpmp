@@ -22,7 +22,7 @@ struct DwTracer : UwpmpTracer {
   ~DwTracer();
   static int frame_cb(Dwfl_Frame* state, void* arg);
  
-  int trace(std::shared_ptr<UwpmpThread> t);
-  int trace_all();
+  int trace_tid(pid_t pid, std::string name);
+  int trace(pid_t pid);
 };
 #endif

@@ -12,7 +12,7 @@
 #include "cxxopts.hpp"
 
 struct UwpmpCtx {
-  pid_t pid;                         // required, must attach to process
+  pid_t pid;                         // required, attach to process or thread
   uint32_t sleep = 0;                // optional, default 0ms
   uint32_t samples = 100;            // optional, default 1000 samples
   float threshold = 0.1;             // optional, default to 0.1%
@@ -31,7 +31,7 @@ struct UwpmpCtx {
         .add_options()
         ("h, help", "show this help message and exit")
 //        ("i, input", "Read collected samples from this file.", cxxopts::value<std::string>())
-        ("p, pid", "PID of the process to attach to.", cxxopts::value<uint32_t>())
+        ("p, pid", "PID of the process or thread to attach to.", cxxopts::value<uint32_t>())
         ("s, sleep", "The time to sleep between samples in ms.", cxxopts::value<uint32_t>())
         ("n, samples", "The number of samples to collect.", cxxopts::value<uint32_t>())
 //        ("o, output", "Write collected samples to this file.", cxxopts::value<std::string())
@@ -140,7 +140,7 @@ struct UwpmpThreadFactory {
 
   UwpmpThreadFactory(UwpmpCtx *c) : ctx(c), thread_map{} {}
 
-  std::shared_ptr<UwpmpThread> get(std::string name, pid_t tid) {
+  std::shared_ptr<UwpmpThread> get(pid_t tid, std::string name) {
     std::string key = name + std::to_string(tid);
     auto thread = std::make_shared<UwpmpThread>(ctx, name, tid);
     thread_map.try_emplace(key, thread);
