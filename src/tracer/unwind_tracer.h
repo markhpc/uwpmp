@@ -14,7 +14,6 @@ struct UnwindTracer : UwpmpTracer {
     unw_set_caching_policy(as, UNW_CACHE_GLOBAL);
     unw_set_cache_size(as, 1024, 0);
   }
-  int trace(std::shared_ptr<UwpmpThread> t); 
-  int trace_all();
+  int trace_tid(pid_t pid, std::string name);
 };
 #endif

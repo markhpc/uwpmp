@@ -1,12 +1,12 @@
 #include <dirent.h>
-#include <fstream>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include "unwind_tracer.h"
 #include "common.h"
 
-int UnwindTracer::trace(std::shared_ptr<UwpmpThread> t)
+int UnwindTracer::trace_tid(pid_t pid, std::string name) 
 {
+  auto t = tf->get(pid, name);
   std::vector<std::string> frames;
 
   if (ptrace(PTRACE_ATTACH, t->id, 0, 0) != 0) {
@@ -39,27 +39,5 @@ int UnwindTracer::trace(std::shared_ptr<UwpmpThread> t)
     std::reverse(std::begin(frames), std::end(frames));
   }
   t->root.add_frames(frames);
-  return 0;
-}
-
-int UnwindTracer::trace_all() 
-{
-  std::string proc_tasks = "/proc/" + std::to_string(ctx->pid) + "/task";
-  DIR *dir;
-  struct dirent *ent;
-  if ((dir = opendir (proc_tasks.c_str())) != nullptr) {
-    while ((ent = readdir (dir)) != NULL) {
-      char *endptr;
-      int tid = strtol(ent->d_name, &endptr, 10);
-      if (*endptr== '\0') {
-        std::string proc_comm = proc_tasks + "/" + std::to_string(tid) + "/comm";
-        std::ifstream is(proc_comm);
-        std::string name;
-        std::getline(is, name);
-        is.close();
-  trace(tf->get(name, (pid_t) tid));
-      }
-    }
-  }
   return 0;
 }

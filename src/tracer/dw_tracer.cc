@@ -77,8 +77,9 @@ int DwTracer::frame_cb(Dwfl_Frame* state, void* arg)
   return DWARF_CB_OK;
 }
 
-int DwTracer::trace(std::shared_ptr<UwpmpThread> t)
+int DwTracer::trace_tid(pid_t pid, std::string name)
 {
+  auto t = tf->get(pid, name);
   int ret = 0;
   int tries = 10;
   dw_ctx.cur_frames.clear();
@@ -104,26 +105,9 @@ int DwTracer::trace(std::shared_ptr<UwpmpThread> t)
   return 0;
 }
 
-int DwTracer::trace_all()
+int DwTracer::trace(pid_t pid)
 { 
-  std::string proc_tasks = "/proc/" + std::to_string(ctx->pid) + "/task";
-  DIR *dir;
-  struct dirent *ent;
-  if ((dir = opendir (proc_tasks.c_str())) != nullptr) {
-    while ((ent = readdir (dir)) != NULL) {
-      char *endptr;
-      int tid = strtol(ent->d_name, &endptr, 10);
-      if (*endptr== '\0') {
-        std::string proc_comm = proc_tasks + "/" + std::to_string(tid) + "/comm";
-        std::ifstream is(proc_comm);
-        std::string name;
-        std::getline(is, name);
-        is.close();
-        trace(tf->get(name, (pid_t) tid));
-      }
-    }
-  }
-  closedir(dir);
+  UwpmpTracer::trace(pid);
   std::cout << "cache items: " << dw_ctx.modcache.size()
             << ", cache hits: " << dw_ctx.cache_hits 
             << ", cache misses: " << dw_ctx.cache_misses << std::endl;
