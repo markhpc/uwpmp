@@ -12,13 +12,14 @@
 #include "cxxopts.hpp"
 
 struct UwpmpCtx {
-  pid_t pid;               // required, must attach to process
-  uint32_t sleep = 0;      // optional, default 0ms
-  uint32_t samples = 100;  // optional, default 1000 samples
-  float threshold = 0.1;   // optional, default to 0.1%
-  bool invert = false;     // optional, default to false
-  uint32_t max_width;      // optional, default to current terminal width
-  bool truncate = true;    // optional, default to true
+  pid_t pid;                         // required, attach to process or thread
+  uint32_t sleep = 0;                // optional, default 0ms
+  uint32_t samples = 100;            // optional, default 1000 samples
+  float threshold = 0.1;             // optional, default to 0.1%
+  bool invert = false;               // optional, default to false
+  uint32_t max_width;                // optional, default to current terminal width
+  bool truncate = true;              // optional, default to true
+  std::string backend = "libunwind"; // optional, defaults to libunwind
 
   UwpmpCtx(int argc, char* argv[]) {
     try {
@@ -30,14 +31,15 @@ struct UwpmpCtx {
         .add_options()
         ("h, help", "show this help message and exit")
 //        ("i, input", "Read collected samples from this file.", cxxopts::value<std::string>())
-        ("p, pid", "PID of the process to attach to.", cxxopts::value<uint32_t>())
+        ("p, pid", "PID of the process or thread to attach to.", cxxopts::value<uint32_t>())
         ("s, sleep", "The time to sleep between samples in ms.", cxxopts::value<uint32_t>())
         ("n, samples", "The number of samples to collect.", cxxopts::value<uint32_t>())
 //        ("o, output", "Write collected samples to this file.", cxxopts::value<std::string())
         ("t, threshold", "Ignore results below the threshold when making the callgraph.", cxxopts::value<float>())
         ("v, invert", "Print inverted callgraph.", cxxopts::value<bool>())
         ("w, max_width", "Set the display width (default is terminal width)", cxxopts::value<uint32_t>())
-        ("r, truncate", "Truncate lines to the terminal width", cxxopts::value<bool>());
+        ("r, truncate", "Truncate lines to the terminal width", cxxopts::value<bool>())
+        ("b, backend", "Valid options: [*libunwind, libdw]", cxxopts::value<std::string>()->default_value("libunwind"));
 
       auto result = options.parse(argc, argv);
       if (result.count("help")) {
@@ -74,6 +76,9 @@ struct UwpmpCtx {
       }
       if (result.count("r")) {
         truncate = result["r"].as<bool>();
+      }
+      if (result.count("b")) {
+        backend = result["b"].as<std::string>();
       }
     } catch (const cxxopts::OptionException& e) {
       std::cout << "error parsing options: " << e.what() << std::endl; 
@@ -135,7 +140,7 @@ struct UwpmpThreadFactory {
 
   UwpmpThreadFactory(UwpmpCtx *c) : ctx(c), thread_map{} {}
 
-  std::shared_ptr<UwpmpThread> get(std::string name, pid_t tid) {
+  std::shared_ptr<UwpmpThread> get(pid_t tid, std::string name) {
     std::string key = name + std::to_string(tid);
     auto thread = std::make_shared<UwpmpThread>(ctx, name, tid);
     thread_map.try_emplace(key, thread);
