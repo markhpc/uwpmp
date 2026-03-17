@@ -1,3 +1,5 @@
+#include <cerrno>
+#include <cstring>
 #include <dirent.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
@@ -10,7 +12,7 @@ int UnwindTracer::trace_tid(pid_t pid, std::string name)
   std::vector<std::string> frames;
 
   if (ptrace(PTRACE_ATTACH, t->id, 0, 0) != 0) {
-    die("ERROR: cannot attach to %d\n", t->id);
+    die("ERROR: cannot attach to %d: %s\n", t->id, strerror(errno));
   }
   waitpid(t->id, NULL, 0);
 
