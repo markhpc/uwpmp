@@ -26,6 +26,7 @@ FROM quay.io/centos/centos:stream9
 
 RUN dnf install -y \
       elfutils-libs \
+      procps-ng \
     && dnf clean all \
     && rm -rf /var/cache/dnf
 
