@@ -68,3 +68,27 @@ Usage:
   -r, --truncate       Truncate lines to the terminal width
 ```
 
+### Container
+
+#### Build
+docker build -t uwpmp .
+
+#### Run — attach to host OSD
+docker run -it --rm \
+  --pid=host \
+  --cap-add=SYS_PTRACE \
+  --security-opt seccomp=unconfined \
+  --security-opt apparmor=unconfined \
+  uwpmp \
+  unwindpmp -p <osd-pid> -n 1000 -s 10
+
+Or drop into a shell first:
+
+docker run -it --rm \
+  --pid=host \
+  --cap-add=SYS_PTRACE \
+  --security-opt seccomp=unconfined \
+  --security-opt apparmor=unconfined \
+  uwpmp \
+  bash
+
