@@ -8,7 +8,7 @@ struct DwTracer : UwpmpTracer {
   struct DwTracerCtx {
     DwTracerCtx() : cur_frames(), modcache(), cache_hits(0), cache_misses(0) {}
     std::vector<std::string> cur_frames;
-    std::unordered_map<std::string, std::string> modcache;
+    std::unordered_map<Dwarf_Addr, std::string> modcache;
     uint64_t cache_hits;
     uint64_t cache_misses;
   };
