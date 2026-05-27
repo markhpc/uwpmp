@@ -1,4 +1,3 @@
-
 #ifndef UWPMP_TYPES_H
 #define UWPMP_TYPES_H
 
@@ -6,6 +5,7 @@
 #include <cstdint>
 #include <iostream>
 #include <iomanip>
+#include <mutex>
 #include <string>
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -16,6 +16,7 @@ struct UwpmpCtx {
   pid_t pid;                         // required, attach to process or thread
   uint32_t sleep = 0;                // optional, default 0ms
   uint32_t samples = 100;            // optional, default 1000 samples
+  uint32_t jobs = 4;                 // optional, default 4 jobs
   float threshold = 0.1;             // optional, default to 0.1%
   bool invert = false;               // optional, default to false
   uint32_t max_width;                // optional, default to current terminal width
@@ -35,12 +36,13 @@ struct UwpmpCtx {
         ("p, pid", "PID of the process or thread to attach to.", cxxopts::value<uint32_t>())
         ("s, sleep", "The time to sleep between samples in ms.", cxxopts::value<uint32_t>())
         ("n, samples", "The number of samples to collect.", cxxopts::value<uint32_t>())
-//        ("o, output", "Write collected samples to this file.", cxxopts::value<std::string())
+        ("j, jobs", "The number of sample collection jobs", cxxopts::value<uint32_t>()->default_value(std::to_string(jobs)))
+	//        ("o, output", "Write collected samples to this file.", cxxopts::value<std::string())
         ("t, threshold", "Ignore results below the threshold when making the callgraph.", cxxopts::value<float>())
         ("v, invert", "Print inverted callgraph.", cxxopts::value<bool>())
         ("w, max_width", "Set the display width (default is terminal width)", cxxopts::value<uint32_t>())
         ("r, truncate", "Truncate lines to the terminal width", cxxopts::value<bool>())
-        ("b, backend", "Valid options: [*libunwind, libdw]", cxxopts::value<std::string>()->default_value("libunwind"));
+        ("b, backend", "Valid options: [*libunwind, libdw]", cxxopts::value<std::string>()->default_value(backend));
 
       auto result = options.parse(argc, argv);
       if (result.count("help")) {
@@ -60,6 +62,9 @@ struct UwpmpCtx {
       }
       if (result.count("n")) {
 	samples = result["n"].as<uint32_t>();
+      }
+      if (result.count("j")) {
+	jobs = result["j"].as<uint32_t>();
       }
       //TODO: Handle output file
       if (result.count("t")) {
@@ -136,12 +141,15 @@ struct UwpmpThread {
 };
 
 struct UwpmpThreadFactory {
+  std::mutex mtx;
   UwpmpCtx* ctx;
   std::unordered_map<std::string, std::shared_ptr<UwpmpThread>> thread_map;
 
   UwpmpThreadFactory(UwpmpCtx *c) : ctx(c), thread_map{} {}
 
   std::shared_ptr<UwpmpThread> get(pid_t tid, std::string name) {
+    std::lock_guard<std::mutex> lock(mtx);
+
     std::string key = name + std::to_string(tid);
     auto thread = std::make_shared<UwpmpThread>(ctx, name, tid);
     thread_map.try_emplace(key, thread);
@@ -149,6 +157,8 @@ struct UwpmpThreadFactory {
   }
 
   std::vector<std::shared_ptr<UwpmpThread>> sorted_getall() {
+    std::lock_guard<std::mutex> lock(mtx);
+
     std::vector<std::shared_ptr<UwpmpThread>> thread_vec;
     for (auto p : thread_map) {
       thread_vec.push_back(p.second);
@@ -163,6 +173,7 @@ struct UwpmpThreadFactory {
     return thread_vec;
   }
   int count() {
+    std::lock_guard<std::mutex> lock(mtx);
     return thread_map.size();
   }
 };
