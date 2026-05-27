@@ -22,6 +22,9 @@ int main(int argc, char **argv)
   for (int i = 0; i < ctx.samples; i++) {
     std::cout << "sample: " << i << std::endl;
     tracer->trace((pid_t) ctx.pid);
+    if (ctx.sleep > 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(ctx.sleep));
+    }
   }
   auto thread_vec = thf.sorted_getall();
   for (auto thread : thread_vec) {
