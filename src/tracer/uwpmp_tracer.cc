@@ -103,6 +103,7 @@ int UwpmpTracer::trace_all(pid_t pid)
         trace_one((pid_t) tid, proc_tasks + "/" + std::to_string(tid) + "/comm");
       }
     }
+    closedir(dir);
   }
   return 0;
 }
