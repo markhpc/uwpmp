@@ -10,7 +10,8 @@ enum TracerType {
 };
 
 struct UwpmpTracer {
-  virtual int trace_tid(pid_t pid, std::string name) = 0;
+  UwpmpThreadFactory *tf = nullptr;
+  virtual int trace_tid(std::shared_ptr<UwpmpThread> t) = 0;
   static std::string demangle(const char *sym);
   virtual bool is_process(pid_t pid);
   virtual int trace_one(pid_t pid, std::string proc_comm);

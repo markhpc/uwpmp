@@ -85,7 +85,7 @@ int UwpmpTracer::trace_one(pid_t tid, std::string proc_comm)
     std::string name;
     std::getline(is, name);
     is.close();
-    trace_tid(tid, name);
+    trace_tid(tf->get(tid, name));
   }
   return 0;
 }

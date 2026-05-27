@@ -36,7 +36,7 @@ struct UwpmpCtx {
         ("p, pid", "PID of the process or thread to attach to.", cxxopts::value<uint32_t>())
         ("s, sleep", "The time to sleep between samples in ms.", cxxopts::value<uint32_t>())
         ("n, samples", "The number of samples to collect.", cxxopts::value<uint32_t>())
-        ("j, jobs", "The number of sample collection jobs", cxxopts::value<uint32_t>()->default_value(std::to_string(jobs)))
+        ("j, jobs", "The number of libdw sampling jobs", cxxopts::value<uint32_t>()->default_value(std::to_string(jobs)))
 	//        ("o, output", "Write collected samples to this file.", cxxopts::value<std::string())
         ("t, threshold", "Ignore results below the threshold when making the callgraph.", cxxopts::value<float>())
         ("v, invert", "Print inverted callgraph.", cxxopts::value<bool>())

@@ -1,13 +1,14 @@
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <dirent.h>
 #include <fstream>
-#include <future>
 #include <iostream>
 #include <mutex>
 #include <queue>
 #include <thread>
 #include <vector>
+#include <sys/stat.h>
 #include "common.h"
 #include "uwpmp_types.h"
 #include "uwpmp_tracer.h"
@@ -54,22 +55,14 @@ struct WorkerPool {
     }
   }
 
-  std::future<void> submit(size_t worker_idx, std::function<void()> task) {
-    auto promise = std::make_shared<std::promise<void>>();
-    auto future = promise->get_future();
+  void submit(size_t worker_idx, std::function<void()> task) {
     auto& w = workers[worker_idx % workers.size()];
     {
-      std::unique_lock<std::mutex> lock(w->mtx);
-      w->queue.push([task=std::move(task), promise]() mutable {
-        task();
-        promise->set_value();
-      });
+        std::unique_lock<std::mutex> lock(w->mtx);
+        w->queue.push(std::move(task));
     }
     w->cv.notify_one();
-    return future;
   }
-
-  size_t size() const { return workers.size(); }
 };
 
 std::vector<std::pair<pid_t, std::string>> get_tids(pid_t pid) {
@@ -110,19 +103,40 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < pool_size; i++)
       tracers.push_back(std::make_unique<DwTracer>(&ctx, &thf));
 
+    struct TidInfo {
+      pid_t tid;
+      std::string name;
+      std::shared_ptr<UwpmpThread> thread;
+    };
+
+    // Pre-populate a tid cache
+    std::vector<TidInfo> tid_cache;
+    for (auto& [tid, name] : get_tids((pid_t)ctx.pid)) {
+      tid_cache.push_back({tid, name, thf.get(tid, name)});
+    }
+
     for (int i = 0; i < ctx.samples; i++) {
       std::cout << "sample: " << i << std::endl;
-      auto tids = get_tids((pid_t)ctx.pid);
-      std::vector<std::future<void>> futures;
-      for (auto& [tid, name] : tids) {
-        size_t worker_idx = (size_t)tid % pool_size;
-        futures.push_back(pool.submit(worker_idx,
-          [&tracers, worker_idx, tid=tid, name=name]() {
-            tracers[worker_idx]->trace_tid(tid, name);
-          }
-        ));
+      std::atomic<int> remaining(tid_cache.size());
+      std::mutex barrier_mtx;
+      std::condition_variable barrier_cv;
+
+      for (auto& ti : tid_cache) {
+        struct stat buf;
+        std::string comm = "/proc/" + std::to_string(ctx.pid) 
+                         + "/task/" + std::to_string(ti.tid) + "/comm";
+        if (stat(comm.c_str(), &buf) != 0) continue;  // TID gone, skip
+	size_t worker_idx = (size_t)ti.tid % pool_size;
+        pool.submit(worker_idx, [&tracers, worker_idx, &ti, &remaining, &barrier_cv]() {
+          tracers[worker_idx]->trace_tid(ti.thread);
+        if (--remaining == 0)
+          barrier_cv.notify_one();
+        });
       }
-      for (auto& f : futures) f.get();
+
+      // Wait for all workers to finish this sample
+      std::unique_lock<std::mutex> lock(barrier_mtx);
+      barrier_cv.wait(lock, [&remaining] { return remaining == 0; });
       if (ctx.sleep > 0)
         std::this_thread::sleep_for(std::chrono::milliseconds(ctx.sleep));
     }

@@ -4,9 +4,8 @@
 #include "unwind_tracer.h"
 #include "common.h"
 
-int UnwindTracer::trace_tid(pid_t pid, std::string name) 
+int UnwindTracer::trace_tid(std::shared_ptr<UwpmpThread> t)
 {
-  auto t = tf->get(pid, name);
   std::vector<std::string> frames;
 
   if (ptrace(PTRACE_ATTACH, t->id, 0, 0) != 0) {
