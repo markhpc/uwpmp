@@ -15,14 +15,13 @@ struct DwTracer : UwpmpTracer {
 
 	DwTracerCtx dw_ctx;
   UwpmpCtx *ctx;
-  UwpmpThreadFactory *tf;
   Dwfl *dwfl;
 
   DwTracer(UwpmpCtx *c, UwpmpThreadFactory *f);
   ~DwTracer();
   static int frame_cb(Dwfl_Frame* state, void* arg);
  
-  int trace_tid(pid_t pid, std::string name);
+  int trace_tid(std::shared_ptr<UwpmpThread> t);
   int trace(pid_t pid);
 };
 #endif

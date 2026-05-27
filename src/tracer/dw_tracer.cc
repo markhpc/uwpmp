@@ -3,12 +3,13 @@
 #include "dw_tracer.h"
 #include "common.h"
 
-DwTracer::DwTracer(UwpmpCtx *c, UwpmpThreadFactory *f) : ctx(c), tf(f), dw_ctx()
+DwTracer::DwTracer(UwpmpCtx *c, UwpmpThreadFactory *f) : ctx(c), dw_ctx()
 {
   static const Dwfl_Callbacks callbacks = {
     .find_elf = dwfl_linux_proc_find_elf,
     .find_debuginfo = dwfl_standard_find_debuginfo
   };
+  tf = f;
   dwfl = dwfl_begin(&callbacks);
 
   int ret = dwfl_linux_proc_report (dwfl, ctx->pid);
@@ -73,19 +74,23 @@ int DwTracer::frame_cb(Dwfl_Frame* state, void* arg)
   return DWARF_CB_OK;
 }
 
-int DwTracer::trace_tid(pid_t pid, std::string name)
+int DwTracer::trace_tid(std::shared_ptr<UwpmpThread> t)
 {
-  auto t = tf->get(pid, name);
   int ret = 0;
   int tries = 10;
   dw_ctx.cur_frames.clear();
   while (tries > 0) {
-    ret = dwfl_getthread_frames(dwfl, t->id, frame_cb, &dw_ctx); 
+    ret = dwfl_getthread_frames(dwfl, t->id, frame_cb, &dw_ctx);
     if (ret == 0) {
       break;
     }
+    // JIT/non-ELF regions can't be fixed by resyncing, skip silently
+    const char *errmsg = dwfl_errmsg(dwfl_errno());
+    if (errmsg && strstr(errmsg, "not a valid ELF file")) {
+        return -1;
+    }
     std::cout << "Resyncing dwfl_linux_proc_report.  Tries left: " << tries << std::endl;
-    int r = dwfl_linux_proc_report (dwfl, ctx->pid);
+    int r = dwfl_linux_proc_report(dwfl, ctx->pid);
     if (r != 0) {
       die("dwfl_linux_proc_report errno: %d\n", dwfl_errno());
     }
