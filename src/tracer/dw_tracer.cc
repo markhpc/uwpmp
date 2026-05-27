@@ -54,23 +54,19 @@ int DwTracer::frame_cb(Dwfl_Frame* state, void* arg)
   Dwfl* dwfl = dwfl_thread_dwfl(thread);
   Dwfl_Module* module = dwfl_addrmodule(dwfl, pc);
 
-  if (module != NULL) {
-    std::string key(reinterpret_cast<char*>(module));
-    key += pc;
-    auto it = dw_ctx->modcache.find(key);
-    if (it != dw_ctx->modcache.end()) {
+  auto it = dw_ctx->modcache.find(pc);
+  if (it != dw_ctx->modcache.end()) {
       dw_ctx->cur_frames.emplace_back(it->second);
       dw_ctx->cache_hits++;
       return DWARF_CB_OK;
-    }
+  }
 
-//    const char *modname = NULL;
-		const char *symname = NULL;
+  if (module != NULL) {
+    const char *symname = NULL;
     GElf_Off off = 0;
     GElf_Sym sym;
-//    modname = dwfl_module_info(module, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
     symname = dwfl_module_addrinfo(module, pc, &off, &sym, NULL, NULL, NULL); 
-    dw_ctx->modcache.emplace(key, demangle(symname));
+    dw_ctx->modcache.emplace(pc, demangle(symname));
     dw_ctx->cur_frames.emplace_back(demangle(symname));
     dw_ctx->cache_misses++;
   }

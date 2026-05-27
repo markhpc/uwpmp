@@ -3,6 +3,7 @@
 #define UWPMP_TYPES_H
 
 #include <cstdlib>
+#include <cstdint>
 #include <iostream>
 #include <iomanip>
 #include <string>
