@@ -16,6 +16,7 @@ struct UwpmpCtx {
   pid_t pid;                         // required, attach to process or thread
   uint32_t sleep = 0;                // optional, default 0ms
   uint32_t samples = 100;            // optional, default 1000 samples
+  float duration = 0;                // optional, stop sampling after this many seconds (0: no limit)
   uint32_t jobs = 4;                 // optional, default 4 jobs
   float threshold = 0.1;             // optional, default to 0.1%
   bool invert = false;               // optional, default to false
@@ -36,6 +37,7 @@ struct UwpmpCtx {
         ("p, pid", "PID of the process or thread to attach to.", cxxopts::value<uint32_t>())
         ("s, sleep", "The time to sleep between samples in ms.", cxxopts::value<uint32_t>())
         ("n, samples", "The number of samples to collect.", cxxopts::value<uint32_t>())
+        ("d, duration", "Stop sampling after this many seconds, even before --samples.", cxxopts::value<float>())
         ("j, jobs", "The number of libdw sampling jobs", cxxopts::value<uint32_t>()->default_value(std::to_string(jobs)))
 	//        ("o, output", "Write collected samples to this file.", cxxopts::value<std::string())
         ("t, threshold", "Ignore results below the threshold when making the callgraph.", cxxopts::value<float>())
@@ -62,6 +64,9 @@ struct UwpmpCtx {
       }
       if (result.count("n")) {
 	samples = result["n"].as<uint32_t>();
+      }
+      if (result.count("d")) {
+        duration = result["d"].as<float>();
       }
       if (result.count("j")) {
 	jobs = result["j"].as<uint32_t>();
