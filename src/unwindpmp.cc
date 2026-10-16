@@ -86,9 +86,17 @@ std::vector<std::pair<pid_t, std::string>> get_tids(pid_t pid) {
   return result;
 }
 
+// True once --duration seconds have passed since start.
+static bool out_of_time(const UwpmpCtx& ctx, std::chrono::steady_clock::time_point start)
+{
+  return ctx.duration > 0 &&
+         std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count() >= ctx.duration;
+}
+
 int main(int argc, char **argv)
 {
   UwpmpCtx ctx = UwpmpCtx(argc, argv);
+  const auto start = std::chrono::steady_clock::now();
   UwpmpThreadFactory thf = UwpmpThreadFactory(&ctx);
   UwpmpTracerFactory trf = UwpmpTracerFactory(&ctx);
 
@@ -115,7 +123,7 @@ int main(int argc, char **argv)
       tid_cache.push_back({tid, name, thf.get(tid, name)});
     }
 
-    for (int i = 0; i < ctx.samples; i++) {
+    for (int i = 0; i < ctx.samples && !out_of_time(ctx, start); i++) {
       std::cout << "sample: " << i << std::endl;
       std::atomic<int> remaining(tid_cache.size());
       std::mutex barrier_mtx;
@@ -152,7 +160,7 @@ int main(int argc, char **argv)
               << ", cache misses: " << total_misses << std::endl;
 
   } else if (ctx.backend == "libunwind") {
-    for (int i = 0; i < ctx.samples; i++) {
+    for (int i = 0; i < ctx.samples && !out_of_time(ctx, start); i++) {
       std::cout << "sample: " << i << std::endl;
       tracer->trace((pid_t)ctx.pid);
       if (ctx.sleep > 0)

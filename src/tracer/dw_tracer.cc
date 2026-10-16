@@ -78,26 +78,40 @@ int DwTracer::trace_tid(std::shared_ptr<UwpmpThread> t)
 {
   int ret = 0;
   int tries = 10;
-  dw_ctx.cur_frames.clear();
-  while (tries > 0) {
+  const char *errmsg = NULL;
+  while (true) {
+    // A failed try leaves its frames behind: start each try empty.
+    dw_ctx.cur_frames.clear();
     ret = dwfl_getthread_frames(dwfl, t->id, frame_cb, &dw_ctx);
     if (ret == 0) {
       break;
     }
     // JIT/non-ELF regions can't be fixed by resyncing, skip silently
-    const char *errmsg = dwfl_errmsg(dwfl_errno());
+    errmsg = dwfl_errmsg(dwfl_errno());
     if (errmsg && strstr(errmsg, "not a valid ELF file")) {
         return -1;
+    }
+    // A stack whose outermost frame has no unwind info (the entry of a
+    // boost::context fiber, for one) stops the same way after any resync:
+    // after one resync, keep the frames found so far.
+    if (!dw_ctx.cur_frames.empty() && tries < 10) {
+      break;
+    }
+    if (--tries == 0) {
+      break;
     }
     std::cout << "Resyncing dwfl_linux_proc_report.  Tries left: " << tries << std::endl;
     int r = dwfl_linux_proc_report(dwfl, ctx->pid);
     if (r != 0) {
       die("dwfl_linux_proc_report errno: %d\n", dwfl_errno());
     }
-    tries--;
   }
-  if (ret != 0) {
-    die("dwfl_getthread_frames ret: %d, errmsg: %s\n", ret, dwfl_errmsg(dwfl_errno()));
+  if (ret != 0 && dw_ctx.cur_frames.empty()) {
+    // The thread exited or cannot be stopped: leave it out of this sample
+    // instead of ending the run.
+    std::cout << "Skipping thread " << t->id << " in this sample: dwfl_getthread_frames ret: "
+              << ret << ", errmsg: " << (errmsg ? errmsg : "(null)") << std::endl;
+    return -1;
   }
   if (!ctx->invert) {
     std::reverse(std::begin(dw_ctx.cur_frames), std::end(dw_ctx.cur_frames));
